@@ -6,8 +6,6 @@ ENV DEBIAN_FRONTEND noninteractive
 
 ENV MININET_REPO https://github.com/mininet/mininet.git
 ENV MININET_INSTALLER mininet/util/install.sh
-ENV INSTALLER_FIX_1 's/sudo //g'
-ENV INSTALLER_FIX_2 's/\(apt-get -y install\)/\1 --no-install-recommends --no-install-suggest/g'
 ENV INSTALLER_SWITCHES -fbinptvwyx
 
 WORKDIR /tmp
@@ -31,28 +29,32 @@ RUN \
     vim \
 
 # Clone and install.
-    && git clone $MININET_REPO
+    && git clone $MININET_REPO \
 
-RUN sed -i 's/sudo //g' $MININET_INSTALLER
-RUN sed -i 's/~\//\//g' $MININET_INSTALLER
-RUN sed -i 's/\(apt-get -y install\)/\1 --no-install-recommends --no-install-suggests/g' $MININET_INSTALLER  
-RUN touch /.bashrc
-RUN git config --global url.https://github.insteadOf git://github \
+# A few changes to make the install script behave.
+    && sed -e 's/sudo //g' \
+    	-e 's/~\//\//g' \
+    	-e 's/\(apt-get -y install\)/\1 --no-install-recommends --no-install-suggests/g' \
+    	-i $MININET_INSTALLER \
+
+# Install script expects to find this. Easier than patching that part of the script.
+    && touch /.bashrc \
+
+# Proceed with the install.
     && chmod +x $MININET_INSTALLER \
     && ./$MININET_INSTALLER -nfv \
+
+# Clean up source.
+    && rm -rf /tmp/mininet \
+              /tmp/openflow \
 
 # Clean up packages.
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Prepare to build.
-WORKDIR /tmp
-
 VOLUME ["/data"]
 
 WORKDIR /data
-
-EXPOSE 6633
 
 # Default command.
 CMD ["bash"]
